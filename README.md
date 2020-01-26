@@ -42,5 +42,16 @@ sensor:
 `icon` _(Optional)_: Icon to display. Default: `"mdi:map-marker"`.
 
 `template` _(Optional)_:
-    Possible attributes: `category`, `type`, `importance`, `addresstype`, `name`, `display_name`, `address`, `house_number`, `road`, `city_district`, `city`, `county`, `state`, `postcode`, `country`, `country_code`, 
-    Default: `"{% if name %} {{ name }}, {% endif %} {{ house_number }} {{ road }}, {{ city_district }}, {{ city }}"` 
+    Possible attributes: `category`, `type`, `importance`, `addresstype`, `name`, `display_name`, `address`, `house_number`, `road`, `city_district`, `city`, `county`, `state`, `postcode`, `country`, `country_code`,
+    Default:
+    ```
+        {% if zone %}
+            {{ zone }}
+        {% else %}
+            {% if name %}
+                {{ name }},
+            {% endif %}
+            {{ house_number }} {{ road }},
+            {{ city_district }}, {{ city }}
+        {% endif %}
+    ```

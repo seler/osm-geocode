@@ -1,13 +1,13 @@
 """Reverse Geocoding based on OSM Nominatim."""
 import logging
-import typing
 from datetime import timedelta
 
 import requests
 from homeassistant.const import ATTR_LATITUDE, ATTR_LONGITUDE
 from homeassistant.helpers import template as templater
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.location import has_location
+
+# from homeassistant.helpers.location import has_location
 from homeassistant.util import Throttle
 
 __version__ = "0.1.0"
@@ -36,11 +36,15 @@ def get_address(latitude, longitude):
 
 
 DEFAULT_TEMPLATE = """
-{% if name %}
-    {{ name }},
+{% if zone %}
+    {{ zone }}
+{% else %}
+    {% if name %}
+        {{ name }},
+    {% endif %}
+    {{ house_number }} {{ road }},
+    {{ city_district }}, {{ city }}
 {% endif %}
-{{ house_number }} {{ road }},
-{{ city_district }}, {{ city }}
 """
 
 
@@ -58,8 +62,15 @@ class OSMGeocodeSensor(Entity):
     @Throttle(timedelta(seconds=60))
     def update(self):
         source = self.config.get("source")
-        latitude, longitude = self._get_position(source)
+        entity = self.hass.states.get(source)
+
+        # if has_location(entity):
+        latitude = entity.attributes.get(ATTR_LATITUDE)
+        longitude = entity.attributes.get(ATTR_LONGITUDE)
         self.address = get_address(latitude, longitude)
+        self.address.update(
+            {"zone": entity.state, "latitude": latitude, "longitude": longitude}
+        )
 
         template = self.config.get("template", DEFAULT_TEMPLATE)
         self._state = templater.Template(template, self.hass).render(self.address)
@@ -79,12 +90,3 @@ class OSMGeocodeSensor(Entity):
     @property
     def device_state_attributes(self):
         return self.address
-
-    def _get_position(self, entity_id) -> typing.Optional[tuple]:
-        entity = self.hass.states.get(entity_id)
-
-        if has_location(entity):
-            return (
-                entity.attributes.get(ATTR_LATITUDE),
-                entity.attributes.get(ATTR_LONGITUDE),
-            )
