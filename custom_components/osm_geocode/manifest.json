@@ -4,5 +4,6 @@
     "documentation": "https://github.com/seler/osm-geocode",
     "dependencies": [],
     "codeowners": [],
-    "requirements": ["requests"]
+    "requirements": ["requests"],
+    "version": "0.2.0"
 }
