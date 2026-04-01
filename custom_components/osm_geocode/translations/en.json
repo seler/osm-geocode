@@ -1,0 +1,33 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Set up OSM Geocode",
+                "description": "Configure a reverse geocoding sensor based on a device tracker.",
+                "data": {
+                    "source": "Source device tracker",
+                    "name": "Sensor name"
+                }
+            }
+        },
+        "error": {
+            "source_not_found": "The selected device tracker entity was not found."
+        },
+        "abort": {
+            "already_configured": "This device tracker is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "OSM Geocode Options",
+                "description": "Configure display options for the geocode sensor.",
+                "data": {
+                    "template": "State template (Jinja2, leave empty for default)",
+                    "icon": "Icon",
+                    "scan_interval": "Update interval (seconds)"
+                }
+            }
+        }
+    }
+}

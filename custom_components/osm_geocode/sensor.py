@@ -1,133 +1,89 @@
-"""Reverse Geocoding based on OSM Nominatim."""
+"""Reverse Geocoding sensor based on OSM Nominatim."""
 
 import logging
-from datetime import timedelta
 
-import requests
-import voluptuous as vol
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import ATTR_LATITUDE, ATTR_LONGITUDE, CONF_NAME
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers import template as templater
-from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
-import homeassistant.helpers.config_validation as cv
 
-__version__ = "0.2.0"
+from .const import (
+    CONF_ICON,
+    CONF_SOURCE,
+    CONF_TEMPLATE,
+    DEFAULT_ICON,
+    DEFAULT_TEMPLATE,
+    DOMAIN,
+)
+from .coordinator import OSMGeocodeCoordinator
+
 _LOGGER = logging.getLogger(__name__)
 
-NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 
-CONF_SOURCE = "source"
-CONF_TEMPLATE = "template"
-CONF_ICON = "icon"
-
-DEFAULT_ICON = "mdi:map-marker"
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_SOURCE): cv.entity_id,
-        vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_TEMPLATE): cv.string,
-        vol.Optional(CONF_ICON, default=DEFAULT_ICON): cv.string,
-    }
-)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up OSM Geocode sensor from a config entry."""
+    coordinator: OSMGeocodeCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([OSMGeocodeSensor(coordinator, entry)])
 
 
-def get_address(latitude, longitude):
-    headers = {
-        "user-agent": "OSM Geocode HASS",
-    }
-
-    params = (
-        ("lat", latitude),
-        ("lon", longitude),
-        ("format", "geojson"),
-    )
-
-    response = requests.get(
-        NOMINATIM_URL, headers=headers, params=params, timeout=10
-    )
-    response.raise_for_status()
-
-    data = response.json()
-    features = data.get("features")
-    if not features:
-        raise ValueError("No features returned from Nominatim")
-
-    address = features[0]["properties"].copy()
-    address.update(address["address"])
-    del address["address"]
-    return address
-
-
-DEFAULT_TEMPLATE = """\
-{% if zone %}\
-{{ zone }}\
-{% else %}\
-{% if name %}\
-{{ name }}, \
-{% endif %}\
-{{ house_number }} {{ road }}, \
-{{ city_district }}, {{ city }}\
-{% endif %}"""
-
+# --- YAML backward compatibility (deprecated) ---
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    async_add_entities([OSMGeocodeSensor(hass, config)])
+    """Import YAML configuration into config entries (deprecated)."""
+    _LOGGER.warning(
+        "Configuration of osm_geocode via YAML is deprecated and will be "
+        "removed in a future version. Please use the UI to configure this "
+        "integration"
+    )
+    hass.async_create_task(
+        hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": "import"},
+            data=dict(config),
+        )
+    )
 
 
-class OSMGeocodeSensor(Entity):
-    def __init__(self, hass, config):
-        self.hass = hass
-        self.address = None
-        self.config = config
-        self._state = "Loading..."
+# --- Sensor entity ---
 
-    @Throttle(timedelta(seconds=60))
-    async def async_update(self):
-        source = self.config.get(CONF_SOURCE)
-        entity = self.hass.states.get(source)
+class OSMGeocodeSensor(CoordinatorEntity, SensorEntity):
+    """Representation of an OSM Geocode sensor."""
 
-        if entity is None:
-            _LOGGER.warning("Entity %s not found", source)
-            return
+    def __init__(
+        self,
+        coordinator: OSMGeocodeCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"osm_geocode_{entry.data[CONF_SOURCE]}"
+        self._attr_name = entry.data.get(CONF_NAME)
 
-        latitude = entity.attributes.get(ATTR_LATITUDE)
-        longitude = entity.attributes.get(ATTR_LONGITUDE)
-
-        if latitude is None or longitude is None:
-            _LOGGER.warning(
-                "Entity %s has no location attributes", source
-            )
-            return
-
-        try:
-            self.address = await self.hass.async_add_executor_job(
-                get_address, latitude, longitude
-            )
-        except (requests.RequestException, ValueError, KeyError) as err:
-            _LOGGER.error("Error fetching address: %s", err)
-            return
-
-        self.address.update(
-            {"zone": entity.state, "latitude": latitude, "longitude": longitude}
+    @property
+    def native_value(self) -> str:
+        """Return the rendered address template as the sensor state."""
+        if self.coordinator.data is None:
+            return None
+        template_str = (
+            self._entry.options.get(CONF_TEMPLATE, "") or DEFAULT_TEMPLATE
+        )
+        return templater.Template(template_str, self.hass).async_render(
+            self.coordinator.data
         )
 
-        template = self.config.get(CONF_TEMPLATE, DEFAULT_TEMPLATE)
-        self._state = templater.Template(template, self.hass).render(self.address)
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return self._entry.options.get(CONF_ICON, DEFAULT_ICON)
 
     @property
-    def name(self):
-        return self.config.get(CONF_NAME)
-
-    @property
-    def state(self):
-        return self._state
-
-    @property
-    def icon(self):
-        return self.config.get(CONF_ICON, DEFAULT_ICON)
-
-    @property
-    def extra_state_attributes(self):
-        return self.address
+    def extra_state_attributes(self) -> dict | None:
+        """Return address attributes."""
+        return self.coordinator.data

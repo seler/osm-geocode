@@ -1,0 +1,17 @@
+homeassistant:
+  name: Integration Test
+  unit_system: metric
+  time_zone: UTC
+
+logger:
+  default: warning
+  logs:
+    custom_components.osm_geocode: debug
+    custom_components.hacs: debug
+
+api:
+
+sensor:
+  - platform: osm_geocode
+    name: "Test Location"
+    source: device_tracker.test_device

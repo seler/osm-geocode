@@ -1,0 +1,13 @@
+services:
+  homeassistant:
+    build:
+      context: ../..
+      dockerfile: tests/integration/Dockerfile
+    ports:
+      - "8123:8123"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8123/api/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s

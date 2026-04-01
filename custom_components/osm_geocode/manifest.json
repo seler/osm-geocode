@@ -2,8 +2,11 @@
     "domain": "osm_geocode",
     "name": "OSM Geocode",
     "documentation": "https://github.com/seler/osm-geocode",
+    "issue_tracker": "https://github.com/seler/osm-geocode/issues",
     "dependencies": [],
-    "codeowners": [],
+    "codeowners": ["@seler"],
     "requirements": ["requests"],
-    "version": "0.2.0"
+    "config_flow": true,
+    "iot_class": "cloud_polling",
+    "version": "0.3.0"
 }

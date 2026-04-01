@@ -2,6 +2,17 @@
 
 Reverse geocoding generates an address from a latitude and longitude of device tracker.
 
+> **Note:** Home Assistant's Companion App provides a built-in
+> [Geocoded Location](https://companion.home-assistant.io/docs/core/sensors/)
+> sensor that performs reverse geocoding on-device using Apple/Google services.
+> This integration differs by using [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/)
+> server-side, which gives you full control over the output format via Jinja2
+> templates, consistent results across all device types, richer address detail
+> from OSM data, and works with any `device_tracker` entity -- not just
+> Companion App devices. For example, OSM data includes nearby point-of-interest
+> names like store names (e.g. "Lidl, Piątkowska 64, Winiary, Poznań") that
+> native geocoding typically omits.
+
 Inspired by [GoogleGeocode-HASS](https://github.com/michaelmcarthur/GoogleGeocode-HASS).
 
 ![osmgeocodeui1](https://github.com/seler/osm-geocode/blob/master/osmgeocodeui1.png 'Screenshot')
