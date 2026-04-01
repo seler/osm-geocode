@@ -1,4 +1,5 @@
 """Reverse Geocoding based on OSM Nominatim."""
+
 import logging
 from datetime import timedelta
 
